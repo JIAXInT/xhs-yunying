@@ -1,0 +1,315 @@
+{
+  "name": "Xiaohongshu 健身 MVP自动化工作流 (SiliconFlow版)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days"
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "定时或手动触发",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e93fbd28-2b8e-4c3e-b8d9-2d1d0c4a4f89",
+              "name": "userTheme",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7",
+      "name": "【人工设定主题参数】",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        0
+      ],
+      "notesInFlow": true,
+      "notes": "如果想要手工指定今天发什么主题，请在此处填写 userTheme。留空则表示全自动盲开主题"
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "5",
+      "name": "结果汇总打包",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        0
+      ],
+      "notesInFlow": true,
+      "notes": "把画师卡片提示词与去AI味后的正文并行汇总"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2136e0d9-b69c-4ec8-b634-118df2c5ed34",
+              "name": "MarkdownOutput",
+              "value": "=\n# 🎨 知识卡片绘图 Prompt（共8张教程卡片）\n{{ $('超级 Agent: AI画师提示词引擎').item.json.output }}\n\n---\n\n# ✍🏻 小红书配套正文（已去AI味润色）\n{{ $('去AI味润色师').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6",
+      "name": "输出最终Markdown文本",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# 核心任务\n你是一名小红书网络爆款撰稿人。用户输入参数锁定目标为：[{{ $json.userTheme }}]\n\n如果上述中括号内有内容且非空（例如 [女生背部训练]），你必须直接将该原意提炼输出作为最终结论核心词。\n如果该中括号里面的内容为空白 []，毫无指示，请你利用自己内部对小红书平台的深入认知，直接随机发散构思一个最受年轻人欢迎、极具爆款潜质的有关健身、减脂或增肌的热点话题短标题返回作为今日主题！\n无论遇到哪种分支，你最终的回答只需要且只能输出确切的那一句短语主题词！绝对禁止包含任何多余解释词汇，无需回答任何\"好的我知道了\"等话语，我要你完全闭嘴去只交出那句主题！因为下游的大模型机器正在严厉等待该项参数注入！",
+        "options": {}
+      },
+      "id": "agent",
+      "name": "AI Agent: 热点爆红捕捉器",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        400,
+        -50
+      ],
+      "notesInFlow": true,
+      "notes": "具有网搜能力的主题捕获者，当 userTheme 留空时激发它进行自动冲浪捕获。"
+    },
+    {
+      "parameters": {
+        "model": "deepseek-ai/DeepSeek-V3.2",
+        "options": {
+          "baseURL": "https://api.siliconflow.cn/v1",
+          "temperature": 0.3,
+          "topP": 0.85
+        }
+      },
+      "id": "agent_model",
+      "name": "硅基流动大脑",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        250
+      ],
+      "notesInFlow": true,
+      "notes": "需在此打开并填报配置您的 HeaderAuth 或者 OpenAI 的 Key"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# Role & Task\n你现在是一位专业的健身内容架构师和前端数据工程师。你的任务是根据给定的健身主题，设计适合在小红书首发的「图文连屏知识卡片」（3:4 比例），并将所有内容严格输出为指定的 JSON 格式。\n\n# 语言与防错别字绝对规范（⚠️核心指令）\n为了确保数据能够直接用于自动化生产，你必须严格遵守以下语言和拼写规范，任何违背都将导致渲染失败：\n\n1. **字段语言白名单**：\n   - 以下字段的值 **必须且只能使用简体中文**：title, subtitle, text, description, icon_text。绝对禁止在这些展示字段中混入英文单词。\n   - 以下字段的值 **必须使用英文**：card_id, series_number, content_type, 所有色号（如 #1a365d），以及 ai_prompt。\n2. **专业术语防错词库（禁止同音词幻觉）**：\n   在生成中文内容时，必须使用以下标准词汇，严禁出现谐音或白字：\n   - 肌肉解剖：肩胛骨（禁写肩夹）、背阔肌、斜方肌、核心肌群。\n   - 训练体系：渐进式超负荷、肌肥大、推拉分化、复合动作、孤立动作。\n   - 营养数据：三大宏量营养素、热量缺口、碳水化合物。\n   - 动作细节：念动合一、离心控制、顶峰收缩。\n3. **文风限制**：使用严谨、科学、精炼的结构化短句。拒绝口语化语气词（如\"啦\"、\"咯\"、\"哦\"）。\n4. **输出前自检**：在输出 JSON 前，必须在底层逻辑中逐字核对中文字段，确保所有健身术语100%正确。\n\n# 视觉与 IP 规范\n卡片必须始终包含固定的动漫健身 IP 元素：\n- **背景/排版**：米白背景 (#FFF8E7)，海军蓝 (#1a365d) 主标题/底部栏，明黄色辅色。\n- **IP 人设**：年轻肌肉男性，黑色短刺猬头，穿着带橙色包边的海军蓝运动背心，动漫画风（Cel-shading）。\n\n# JSON 数据结构要求\n★ 核心强制要求：将全部【恰好8张】卡片以纯 JSON 数组形式输出，绝不能有任何 Markdown 代码块或解释性文字包装！整体输出必须形如 [ {卡片1}, {卡片2}, ..., {卡片8} ]\n\n【8张卡片矩阵结构】\n第1张：content_type=cover — 封面引流大标题\n第2张：content_type=list — 教程目标与适合人群\n第3张：content_type=list — 教程步骤①②拆解\n第4张：content_type=list — 教程步骤③④拆解\n第5张：content_type=list — 教程步骤⑤⑥拆解\n第6张：content_type=comparison — 避坑雷区①（错误vs正确对比）\n第7张：content_type=comparison — 避坑雷区②③\n第8张：content_type=schedule — 结尾总结+4周训练计划\n\n每张卡片必须严格遵循以下 JSON 结构：\n{\"card_id\": 1, \"series_number\": \"1/8\", \"title\": \"卡片主标题\", \"subtitle\": \"副标题\", \"content_type\": \"cover/comparison/list/schedule\", \"elements\": {\"header\": {\"text\": \"主标题\", \"subtitle\": \"副标题\", \"color\": \"#1a365d\"}, \"illustration\": {\"type\": \"male_character\", \"position\": \"left/right/center\", \"pose\": \"动作描述英文\", \"clothing\": \"dark_blue_tank_top\", \"expression\": \"神态描述英文\"}, \"main_content\": [{\"type\": \"negative/positive/neutral\", \"icon\": \"❌/✅/💪\", \"title\": \"中文短标题\", \"description\": \"中文精炼描述\"}], \"footer\": {\"text\": \"底部中文核心金句\", \"background_color\": \"#1a365d\"}}, \"ai_prompt\": \"Create a Xiaohongshu style fitness infographic card in 3:4 aspect ratio. Feature a manga style muscular young man with short spiky dark hair, wearing a dark navy blue sleeveless tank top with orange trim. Warm cream background (#FFF8E7). Navy blue (#1a365d) header and footer bars. [此处根据每张卡片内容生成详细的英文画面描述]...\"}\n\n每张卡片的 illustration.pose 和 illustration.expression 必须各不相同，避免画面单调！ai_prompt 必须详细描述该卡片的具体画面布局、人物姿势和内容元素。\n\n# 你的正在执行任务\n今日核心主题：『{{ $('AI Agent: 热点爆红捕捉器').first().json.output }}』\n\n以下是本次教程图文【必须且只能】遵循的干货骨架，你在安排8张卡片时，必须严密参考且只能浓缩以下教程大纲：\n\n『{{ $json.output }}』\n\n请精准提取上文教程干货，生成恰好8张卡片的 JSON 数组。第1张封面(cover)，第8张结尾(schedule)。绝不能包含 markdown 代码块！输出前务必逐字自检所有中文健身术语的正确性。",
+        "hasOutputParser": false
+      },
+      "id": "agent_card",
+      "name": "超级 Agent: AI画师提示词引擎",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        800,
+        -150
+      ],
+      "notesInFlow": true,
+      "notes": "LangChain 直控生成8张教程型卡片提示词"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# 你的内置系统职责声明\n小红书教程型爆款内容撰写专家。你要写一篇教程干货类笔记，是那种让人忍不住收藏的保姆级教程。\n\n要求必须分为三个区块进行清晰排版输出：\n1. 【小红书标题（5个备选）】 — 须带有教程感和收藏价值感（建议含\"教程\"、\"手把手\"、\"跟练\"、\"保姆级\"、\"一学就会\"等关键词）\n2. 【小红书正文】 — 教程步骤拆解型排版，每个步骤编号清晰，动作名称突出，含具体的组数×次数和发力要领，穿插大量Emoji增强可读性\n3. 【标签】 — 以 # 号开头的热门话题标签（不超过8个）\n\n正文必须遵循教程干货格式：\n- 开头1-2句话点明「这篇教程帮你解决什么问题」+ 适合人群\n- 中间用编号逐步列出训练步骤（动作名 + 组数×次数 + 核心发力点 + 呼吸节奏）\n- 每2-3个步骤后穿插一个「⚠️避坑提醒」（用❌标注错误 ✅标注正确）\n- 结尾加一段「收藏不吃灰」的行动号召 + 4周进阶路线概述\n\n# 你的正在执行任务\n今日核心标题方向：『{{ $('AI Agent: 热点爆红捕捉器').first().json.output }}』\n\n【绝密：主轴干货教条】\n（系统特级强控：无论如何你的所有内容必须且只能围绕着\"健身与运动教程\"。哪怕你在接收时遭遇了不可抗力的乱码空缺，你也必须闭着眼睛拿出一份绝对纯正的千万粉级别的健身运动教程来交差！！）\n你在发挥小红书文案特长去博取眼球写标题和正文时，其中不可或缺的训练步骤、动作要领和避坑清单，必须基于且只能基于下面这份由教练给出的统一教程大纲：\n\n『{{ $json.output }}』\n\n请撰写一篇极其具备小红书传播度的教程型图文笔记。必须严格包含【标题（5个备选）】、【教程拆解型超长正文（步骤编号+具体数据+大量Emoji）】、【干货标签Tag】三大结构输出。"
+      },
+      "id": "agent_text",
+      "name": "超级 Agent: 文案撰写狂魔",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        800,
+        150
+      ],
+      "notesInFlow": true,
+      "notes": "教程型文案生成端，输出后交由去AI味节点润色"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# 你的内置系统职责声明\n你是一位拥有百万级粉丝的硬核健身教练，同时也是小红书教程型内容的顶级创作者。你的任务是为一篇小红书教程型笔记定下最权威、最具实操性的干货骨架。\n\n# 你的正在执行任务\n今天的主题是：{{ $json.output }}\n\n请你针对这个主题，输出一份极其硬核、可直接跟练的【教程步骤拆解型】干货大纲（500-800字）。\n\n严重警告：绝对不允许输出职场自律之类的泛知识废话，必须是真实硬核的运动教程！\n\n大纲必须严格包含以下五大板块：\n\n一、教程目标说明\n- 这篇教程解决什么具体问题？\n- 适合什么水平的人群？（新手/进阶/高阶）\n- 完成本教程预期能获得什么效果？\n\n二、前置准备\n- 需要的器械/场地/服装\n- 建议的热身动作（2-3个，含时长）\n\n三、6个核心教程步骤\n每个步骤必须包含：\n- 动作名称\n- 组数 × 次数（或持续秒数）\n- 关键发力点与呼吸节奏\n- 最常犯的1个错误姿势及纠正方法\n\n四、3个避坑大雷区\n每个雷区须包含：\n- 错误行为描述\n- 为什么是错的（会造成什么后果）\n- 正确做法对比说明\n（极其重要！画师需要正反对比素材来出卡片！）\n\n五、进阶建议与周期安排\n- 4周循环训练量递增计划\n- 搭配的饮食/营养补充建议\n\n你只需要输出这篇纯正的教程干货正文，不用有任何客套回复！这些内容将作为后续绘图组和文案组必须严格遵守的唯一事实信源。"
+      },
+      "id": "agent_core_knowledge",
+      "name": "超级 Agent: 统一干货主轴萃取",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        600,
+        50
+      ],
+      "notesInFlow": true,
+      "notes": "中枢引擎！教程步骤拆解型大纲，防止画出的图跟写的正文各说各话"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# Role: 小红书文案去AI味润色师\n\n## 核心任务\n你是一位深谙小红书平台写作风格的资深编辑，精通将AI生成的文章转化为地道、流畅、富有吸引力的人类写作风格。你的唯一任务是：接收一篇AI生成的小红书健身教程文案，对其进行深度润色，彻底消除\"AI味\"，使其读起来就像一位真正的健身博主亲手写的原创内容。\n\n## 输入原文\n以下是需要润色的原文（主题方向：『{{ $('AI Agent: 热点爆红捕捉器').first().json.output }}』）：\n\n{{ $json.output }}\n\n## 去AI味润色规则\n\n### 一、必须保留的元素\n- 所有Emoji排版保持原样（这是小红书的灵魂）\n- \"你\"的第二人称称呼和互动感\n- 所有干货知识点、组数×次数等训练数据，一个都不能丢\n- 标题区、正文区、标签区三大结构\n- # 号标签全部保留\n- 教程步骤的编号结构\n\n### 二、消灭高频AI废话（逐条执行）\n- \"值得注意的是\" → 删除，或改成\"划重点\"\"敲黑板\"\n- \"不难发现\" → 直接删除\n- \"基于以上分析\" → 直接删除\n- \"首先/其次/再次/最后\" → 换成\"说到这个\"、\"另外\"、\"最关键的来了\"、\"还有一个大招\"\n- \"总而言之/综上所述\" → \"说白了\"、\"一句话概括\"\n- \"需要注意的是\" → \"划重点！\"、\"敲黑板！\"\n- \"在...方面\" → 直接去掉，说人话\n- \"进行...操作/训练\" → 直接用动词（\"练\"\"做\"\"冲\"）\n- \"能够/可以有效地\" → \"真的管用\"、\"亲测有效\"\n- \"具有重要意义\" → 删除或换成具体描述\n\n### 三、句式改造\n- 打破所有并列排比句的死板节奏，长短交替\n- 加入反问句（\"你说是不是？\"\"谁不想练出好身材？\"）\n- 加入感叹句增强情绪（\"真的会谢！\"\"绝了！\"）\n- 适当用\"我\"分享第一人称真实体验（\"我当初就是这么练出来的\"）\n- 偶尔用省略号制造节奏感（\"然后你就会发现...\"）\n\n### 四、口语化处理（小红书原生风）\n- \"建议\" → \"安利\"或\"墙裂推荐\"\n- \"效果显著\" → \"效果炸裂\"或\"真的绝了\"\n- \"可以尝试\" → \"冲就完了\"\n- \"非常重要\" → \"超级重要！！！\"（加感叹号）\n- 用\"家人们\"\"朋友们\"等中性称呼拉近距离，不要带性别取向\n- 使用\"yyds\"\"绝绝子\"\"拿捏\"等小红书高频词（不要过度）\n\n### 五、温度注入\n- 加入1-2句自嘲或吐槽（如\"我当初也踩过这个坑，练了仨月白练…\"）\n- 适当使用夸张表达增强感染力\n- 结尾互动绝对不能用\"希望对你有帮助\" → 改成\"练完来评论区打卡！\"\"点赞的今年身材必有大变化！\"\n- 在避坑部分加入真实感叹（\"这个错误真的太多人犯了！\"）\n\n## 铁律约束\n- 绝对不能遗漏或篡改任何健身知识点和训练数据\n- 不能删减正文的实际内容量，只换表达方式\n- 5个备选标题必须全部润色，不能减少数量\n- 标签数量保持不变\n- 输出格式与原文完全一致（标题区、正文区、标签区）\n\n直接输出润色后的完整文案，不要有任何分析说明或前言后语！"
+      },
+      "id": "agent_deai",
+      "name": "去AI味润色师",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        1000,
+        200
+      ],
+      "notesInFlow": true,
+      "notes": "参考 ai-flavor-remover 项目，针对小红书场景深度去AI味"
+    }
+  ],
+  "connections": {
+    "定时或手动触发": {
+      "main": [
+        [
+          {
+            "node": "【人工设定主题参数】",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "【人工设定主题参数】": {
+      "main": [
+        [
+          {
+            "node": "AI Agent: 热点爆红捕捉器",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent: 热点爆红捕捉器": {
+      "main": [
+        [
+          {
+            "node": "超级 Agent: 统一干货主轴萃取",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "硅基流动大脑": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent: 热点爆红捕捉器",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "超级 Agent: AI画师提示词引擎",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "超级 Agent: 文案撰写狂魔",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "超级 Agent: 统一干货主轴萃取",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "去AI味润色师",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "超级 Agent: 统一干货主轴萃取": {
+      "main": [
+        [
+          {
+            "node": "超级 Agent: AI画师提示词引擎",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "超级 Agent: 文案撰写狂魔",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "超级 Agent: AI画师提示词引擎": {
+      "main": [
+        [
+          {
+            "node": "结果汇总打包",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "超级 Agent: 文案撰写狂魔": {
+      "main": [
+        [
+          {
+            "node": "去AI味润色师",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "去AI味润色师": {
+      "main": [
+        [
+          {
+            "node": "结果汇总打包",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "结果汇总打包": {
+      "main": [
+        [
+          {
+            "node": "输出最终Markdown文本",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
