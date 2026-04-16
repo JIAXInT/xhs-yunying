@@ -1,0 +1,65 @@
+=== Data Flow Verification ===
+
+Pipeline execution order:
+  [1] 定时或手动触发 (scheduleTrigger)
+  [2] 【用户参数设定】 (set)
+  [3] ❓ 检查是否指定主题 (if)
+  [4] 📌 确立最终主题 (set)
+  [5] 💪 健身教练 Agent (chainLlm)
+  [6] 💾 保存教练输出 (set)
+  [7] 🎨 知识卡片架构师 Agent (chainLlm)
+  [8] 💾 保存卡片输出 (set)
+  [9] ✍️ 文案撰写 Agent (chainLlm)
+  [10] 💾 保存全部数据 (set)
+  [11] ✅ 质量审核 Agent (chainLlm)
+  [12] 💾 保存审核结果 (set)
+  [13] 📦 输出最终内容 (set)
+
+=== Each Pack Node: where does it read data from? ===
+
+📦 💾 保存教练输出:
+   Upstream input comes from: ['💪 健身教练 Agent']
+   topic = $('📌 确立最终主题')  <-- cross-node ref
+   coach_output = $json.output  <-- from direct upstream
+
+📦 💾 保存卡片输出:
+   Upstream input comes from: ['🎨 知识卡片架构师 Agent']
+   topic = $('💾 保存教练输出')  <-- cross-node ref
+   coach_output = $('💾 保存教练输出')  <-- cross-node ref
+   cards_output = $json.output  <-- from direct upstream
+
+📦 💾 保存全部数据:
+   Upstream input comes from: ['✍️ 文案撰写 Agent']
+   topic = $('💾 保存卡片输出')  <-- cross-node ref
+   coach_output = $('💾 保存卡片输出')  <-- cross-node ref
+   cards_output = $('💾 保存卡片输出')  <-- cross-node ref
+   writer_output = $json.output  <-- from direct upstream
+
+📦 💾 保存审核结果:
+   Upstream input comes from: ['✅ 质量审核 Agent']
+   topic = $('💾 保存全部数据')  <-- cross-node ref
+   coach_output = $('💾 保存全部数据')  <-- cross-node ref
+   cards_output = $('💾 保存全部数据')  <-- cross-node ref
+   writer_output = $('💾 保存全部数据')  <-- cross-node ref
+   qa_output = $json.output  <-- from direct upstream
+
+=== AI Agent Nodes: what do they read? ===
+
+🤖 🔥 热点趋势 Agent:
+
+🤖 💪 健身教练 Agent:
+   reads: $json.topic
+
+🤖 🎨 知识卡片架构师 Agent:
+   reads: $json.topic
+   reads: $json.coach_output
+
+🤖 ✍️ 文案撰写 Agent:
+   reads: $json.topic
+   reads: $json.coach_output
+
+🤖 ✅ 质量审核 Agent:
+   reads: $json.cards_output
+   reads: $json.writer_output
+   reads: $json.coach_output
+   reads: $json.topic

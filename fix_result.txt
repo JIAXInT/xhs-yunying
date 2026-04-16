@@ -1,0 +1,24 @@
+=== AI Agent nodes ===
+  🔥 热点趋势 Agent (type=@n8n/n8n-nodes-langchain.agent)
+  💪 健身教练 Agent (type=@n8n/n8n-nodes-langchain.chainLlm)
+  🎨 知识卡片架构师 Agent (type=@n8n/n8n-nodes-langchain.chainLlm)
+  ✍️ 文案撰写 Agent (type=@n8n/n8n-nodes-langchain.chainLlm)
+  ✅ 质量审核 Agent (type=@n8n/n8n-nodes-langchain.chainLlm)
+  精准判断引擎 (T=0.1) (type=@n8n/n8n-nodes-langchain.lmChatOpenAi)
+  专业知识引擎 (T=0.2) (type=@n8n/n8n-nodes-langchain.lmChatOpenAi)
+  创意文案引擎 (T=0.7) (type=@n8n/n8n-nodes-langchain.lmChatOpenAi)
+  Model: 创意文案引擎 (T=0.7) --> ['🔥 热点趋势 Agent', '✍️ 文案撰写 Agent']
+  Model: 专业知识引擎 (T=0.2) --> ['💪 健身教练 Agent', '🎨 知识卡片架构师 Agent']
+  Model: 精准判断引擎 (T=0.1) --> ['✅ 质量审核 Agent']
+
+=== Verification ===
+  OK: 🔥 热点趋势 Agent <-- 创意文案引擎 (T=0.7)
+  OK: 💪 健身教练 Agent <-- 专业知识引擎 (T=0.2)
+  OK: 🎨 知识卡片架构师 Agent <-- 专业知识引擎 (T=0.2)
+  OK: ✍️ 文案撰写 Agent <-- 创意文案引擎 (T=0.7)
+  OK: ✅ 质量审核 Agent <-- 精准判断引擎 (T=0.1)
+  FAIL: 精准判断引擎 (T=0.1) <-- NO MODEL!
+  FAIL: 专业知识引擎 (T=0.2) <-- NO MODEL!
+  FAIL: 创意文案引擎 (T=0.7) <-- NO MODEL!
+
+Saved. all_ok=False
